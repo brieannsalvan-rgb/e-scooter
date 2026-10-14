@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+  E-SCOOTER SMART WHEEL ANALYZER
+  Physics: Rotational Motion (Circular Motion of a Scooter Wheel)
+=====================================================================
+  WHAT THIS PROJECT IS
+  A web app made of three files that must stay in the same folder.
+  No installation and no internet connection needed.
+  Just double-click index.html.
+
+  THE THREE FILES
+    index.html  -> the page content (inputs, results, canvas, tests)
+    style.css   -> all the looks (colors, layout, buttons)
+    script.js   -> all the logic, split in numbered sections:
+         SECTION 1  Physics formulas   (the calculations)
+         SECTION 2  Reading inputs     (validation)
+         SECTION 3  Showing results    (updates the page)
+         SECTION 4  Wheel animation    (canvas drawing)
+         SECTION 5  Angle-time graph   (canvas drawing)
+         SECTION 6  Test panel         (manual-calculation checker)
+         SECTION 7  Validation         (3 manual cases + trend checks)
+         SECTION 8  Start-up           (connects everything)
+
+  PHYSICS CONCEPTS USED (all SI units)
+    1. Angular velocity       w  = 2*pi*N / 60          [rad/s]
+    2. Tangential velocity    vt = w * r                [m/s]
+    3. Centripetal accel.     ac = w^2 * r  (= vt^2/r)  [m/s^2]
+    4. Angular displacement   theta = w * t             [rad]
+    5. Arc length             s  = theta * r            [m]
+    6. Period / frequency     T = 60/N, f = N/60        [s], [Hz]
+  where  N = motor speed in RPM,  r = wheel radius in metres.
+=====================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>E-Scooter Smart Wheel Analyzer</title>
+
+  <!-- All the looks live in style.css -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header>
+    <h1>🛴 E-Scooter Smart Wheel Analyzer</h1>
+    <p>Enter the wheel radius and motor speed to analyze the rotational motion of a scooter tire.</p>
+  </header>
+
+  <main class="layout">
+
+    <!-- ================= HOW TO USE (instructions inside the product) =================
+         PDF ref: p.3, "Minimum product requirements" item 8 ("Include clear
+         user instructions") and "Phase 1 deliverables" ("Put instructions in
+         the interface, submission comment or a short README").
+         p.9, rubric row "Creativity Innovation and Usability" (easy-to-follow
+         instructions). -->
+    <section class="card full howto-card">
+      <h2>How to use this analyzer</h2>
+      <ol class="howto">
+        <li>Type the <strong>wheel radius r</strong> (choose m, cm or in) and the
+            <strong>motor speed N</strong> in RPM. Optionally change the <strong>time t</strong>.</li>
+        <li>Read the results in <strong>2 · Results</strong>. Every value is shown in SI units
+            (rad/s, m/s, m/s², s, rad, m) and updates as you type.</li>
+        <li>Watch the wheel in <strong>3</strong>. The green arrow is the velocity of point P,
+            the orange arrow is its centripetal acceleration. Use the slider to slow it down.</li>
+        <li>Check the θ–t graph, then solve ω, v<sub>t</sub> and a<sub>c</sub> by hand in the
+            <strong>Test panel (7)</strong> and press <em>Check answers</em>.</li>
+        <li>Open <strong>9 · Validation evidence</strong> to see three input sets compared with manual calculations.</li>
+      </ol>
+      <p class="note">Valid ranges: r = 0.01–1 m, N = 1–3000 RPM, t = 0–3600 s.
+        Invalid or empty entries show a red message and no result.</p>
+    </section>
+
+    <!-- ================= INPUT CARD =================
+         PDF ref: p.4, "Suggested Coding Projects", row "Smart Wheel Analyzer":
+         "Adjust radius and RPM". p.3, "Minimum product requirements" item 4
+         (at least two physical variables: here radius and RPM, plus time) and
+         item 7 (labels with units, unit selector converts to SI).
+         p.5, "Unit conversion": "N is a numerical RPM input." -->
+    <section class="card">
+      <h2>1 · Enter the values</h2>
+
+      <label for="radius">Wheel radius, r
+        <span class="hint">(typed in the unit you choose; converted to meters, e.g. 0.12 m = 12 cm)</span></label>
+      <div class="inline">
+        <input type="number" id="radius" value="0.12" step="any" min="0" />
+        <select id="radiusUnit" aria-label="Radius unit">
+          <option value="m" selected>m</option>
+          <option value="cm">cm</option>
+          <option value="in">in</option>
+        </select>
+      </div>
+      <div class="error" id="radiusError"></div>
+
+      <label for="rpm">Motor speed, N
+        <span class="hint">(revolutions per minute, RPM)</span></label>
+      <input type="number" id="rpm" value="600" step="10" min="1" max="3000" />
+      <div class="error" id="rpmError"></div>
+
+      <label for="time">Time, t
+        <span class="hint">(seconds - used for angle and distance traveled)</span></label>
+      <input type="number" id="time" value="5" step="0.5" min="0" max="3600" />
+      <div class="error" id="timeError"></div>
+
+      <label>Quick examples</label>
+      <div class="btn-row">
+        <button data-preset="0.10,300,5">Kick scooter</button>
+        <button data-preset="0.12,600,5">City e-scooter</button>
+        <button data-preset="0.15,900,5">Fast commuter</button>
+      </div>
+
+      <div class="btn-row">
+        <button class="primary" id="calcBtn">Calculate</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <p class="note">Results also update automatically while you type.</p>
+    </section>
+
+    <!-- ================= RESULTS CARD =================
+         PDF ref: p.4, row "Smart Wheel Analyzer": concepts "Angular velocity,
+         tangential speed, centripetal acceleration" (the three main tiles).
+         The Period, Angular displacement and Arc length tiles are extra
+         concepts: p.5 rows "Rotation with constant angular acceleration" and
+         "Linear and angular connections" (T is not in the PDF).
+         Formulas shown in the tiles: p.5, "Physics Equations and Model
+         Conditions"; p.6, "Worked example Smart Wheel Analyzer". -->
+    <section class="card">
+      <h2>2 · Results</h2>
+      <div class="results">
+        <div class="tile">
+          <div class="name">Angular velocity (ω)</div>
+          <div class="value" id="outOmega">–</div>
+          <div class="unit">rad/s</div>
+          <div class="formula">ω = 2πN / 60</div>
+        </div>
+        <div class="tile green">
+          <div class="name">Tangential speed (v<sub>t</sub>)</div>
+          <div class="value" id="outVt">–</div>
+          <div class="unit" id="outKmh">m/s</div>
+          <div class="formula">v<sub>t</sub> = ω · r</div>
+        </div>
+        <div class="tile orange">
+          <div class="name">Centripetal accel. (a<sub>c</sub>)</div>
+          <div class="value" id="outAc">–</div>
+          <div class="unit" id="outG">m/s²</div>
+          <div class="formula">a<sub>c</sub> = ω² · r</div>
+        </div>
+        <div class="tile">
+          <div class="name">Period (T)</div>
+          <div class="value" id="outT">–</div>
+          <div class="unit">s per revolution</div>
+          <div class="formula">T = 60 / N</div>
+        </div>
+        <div class="tile">
+          <div class="name">Angular displacement (θ)</div>
+          <div class="value" id="outTheta">–</div>
+          <div class="unit" id="outRevs">rad</div>
+          <div class="formula">θ = ω · t</div>
+        </div>
+        <div class="tile">
+          <div class="name">Arc length / distance (s)</div>
+          <div class="value" id="outS">–</div>
+          <div class="unit">m</div>
+          <div class="formula">s = θ · r</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LIVE WHEEL =================
+         PDF ref: p.4, row "Smart Wheel Analyzer": "rotate a wheel and display
+         values at its rim". p.3, item 6 (responsive animation).
+         p.5, "Make the model honest", paragraph 2: a declared scale and slower
+         playback are allowed if labels and trends match (see the note below
+         the legend and the slow-motion slider). -->
+    <section class="card">
+      <h2>3 · Live rotating scooter wheel</h2>
+      <canvas id="wheelCanvas" width="640" height="400"></canvas>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--green)"></span>Tangential velocity v<sub>t</sub> (along the path)</span>
+        <span><span class="dot" style="background:var(--orange)"></span>Centripetal acceleration a<sub>c</sub> (points to center)</span>
+      </div>
+      <p class="note">
+        The <strong>rear (left) wheel is the analyzed motor wheel</strong>; the slim scooter body is
+        only there for context. Display scale: the wheel size and arrow lengths are <em>not</em>
+        drawn to true scale (arrow length uses a logarithmic scale). A bigger radius gives a bigger
+        wheel and a bigger value gives a longer arrow. The rotation is slowed down by the slider,
+        and the ground marks slide back by r·Δθ because the scooter rolls without slipping.
+      </p>
+
+      <label for="slow">Animation speed
+        <span class="hint">(slow motion - real speeds are too fast to see)</span></label>
+      <input type="range" id="slow" min="0.01" max="1" step="0.01" value="0.05" />
+      <div class="note" id="slowLabel"></div>
+      <div class="btn-row">
+        <button id="pauseBtn">⏸ Pause</button>
+      </div>
+    </section>
+
+    <!-- ================= GRAPH =================
+         PDF ref: p.3, items 6 and 7 (graph with labeled axes and units).
+         p.5, row "Rotation with constant angular acceleration": Δθ = ωt when
+         α = 0. -->
+    <section class="card">
+      <h2>4 · Graph: angular displacement vs time</h2>
+      <canvas id="graphCanvas" width="520" height="420"></canvas>
+      <p class="note">
+        Constant speed means a straight line θ = ωt. The steepness (slope)
+        of the line is the angular velocity ω. The dot shows the time you entered.
+      </p>
+    </section>
+
+    <!-- ================= STEP BY STEP =================
+         PDF ref: p.6, "Worked example Smart Wheel Analyzer" (the manual-check
+         layout: ω = 2π(60)/60 ..., v_t = 0.20(2π) ..., a_c = 0.20(2π)² ...);
+         p.7, Phase 2 table row 4 (equations and inputs visible and readable). -->
+    <section class="card full">
+      <h2>5 · Step-by-step solution (shows the substitution with SI units)</h2>
+      <div class="steps" id="steps">Enter valid values to see the solution.</div>
+    </section>
+
+    <!-- ================= REAL LIFE =================
+         PDF ref: p.3, "Minimum product requirements" item 8 ("a meaningful
+         real-life application"); p.1, section III "explains a real-life
+         application"; p.1, section IV "applications involving wheels, gears,
+         pulleys and turbines"; p.7, Phase 2 table row 1. -->
+    <section class="card full">
+      <h2>6 · Real-life application</h2>
+      <p>
+        <strong>Electric scooters, e-bikes and cars</strong> use the same relations. The motor
+        tells us how fast the wheel <em>spins</em> (RPM → ω). Multiplying by the wheel radius
+        gives the scooter's <em>ground speed</em> (v<sub>t</sub> = ωr), which is what the
+        speedometer shows. Engineers also check the centripetal acceleration
+        (a<sub>c</sub> = ω²r) because it is the inward acceleration a point on the tire
+        needs to stay on its circular path; the larger it is, the more stress
+        the tire, rim and spokes must withstand.
+      </p>
+      <p class="note" id="applicationLine"></p>
+    </section>
+
+    <!-- ================= TEST PANEL =================
+         PDF ref: the team's own feature (from the project idea). Related to
+         p.3, Phase 1 step 4 ("compare all relevant numerical outputs with
+         manual calculations") and p.6, "Place the comparisons in a small
+         test-results panel in your program". -->
+    <section class="card full">
+      <h2>7 · Test panel - check your manual calculations</h2>
+      <p class="note">
+        Solve the three problems by hand (calculator) using the <strong>given values</strong> below,
+        type your answers, then press <strong>Check answers</strong>. An answer is accepted
+        within ±1% of the program's value. Press <strong>Clear</strong> to get a
+        <strong>new random problem</strong>, or <strong>Use my analyzer values</strong> to practice
+        with the values you typed above.
+      </p>
+      <!-- Random "Given" for the manual check (filled in by newRandomProblem() in script.js) -->
+      <div class="steps" id="testGiven" style="margin-bottom:14px">Given:  r = 0.12 m,   N = 600 RPM,   t = 5 s</div>
+      <table>
+        <thead>
+          <tr><th>Quantity</th><th>Your answer</th><th>Unit</th><th>Program value</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Angular velocity ω</td>
+            <td><input type="number" step="any" id="testOmega" /></td>
+            <td>rad/s</td>
+            <td id="ansOmega">hidden</td>
+            <td class="badge" id="resOmega"></td>
+          </tr>
+          <tr>
+            <td>Tangential speed v<sub>t</sub></td>
+            <td><input type="number" step="any" id="testVt" /></td>
+            <td>m/s</td>
+            <td id="ansVt">hidden</td>
+            <td class="badge" id="resVt"></td>
+          </tr>
+          <tr>
+            <td>Centripetal accel. a<sub>c</sub></td>
+            <td><input type="number" step="any" id="testAc" /></td>
+            <td>m/s²</td>
+            <td id="ansAc">hidden</td>
+            <td class="badge" id="resAc"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="btn-row">
+        <button class="primary" id="checkBtn">Check answers</button>
+        <button id="clearTestBtn">🎲 Clear (new random problem)</button>
+        <button id="useValuesBtn">Use my analyzer values</button>
+      </div>
+      <p id="testSummary" class="badge"></p>
+    </section>
+
+    <!-- ================= ASSUMPTIONS =================
+         PDF ref: p.3, item 3 ("state assumptions that affect their use");
+         p.5, "Make the model honest" paragraph 1 (rolling: vCM = rω only
+         without slipping); p.5 table column "Units and conditions"
+         ("Angular acceleration must be constant", "Use radians and a fixed
+         radius", a_c "differs from tangential acceleration");
+         p.6, worked example intro ("a point on a wheel's rim as moving in a
+         circle at constant angular speed"); p.7, Phase 2 row 2 ("State
+         assumptions"). -->
+    <section class="card full">
+      <h2>8 · Model assumptions</h2>
+      <ul class="howto">
+        <li><strong>Uniform circular motion:</strong> the wheel turns at a constant angular
+            velocity ω, so angular acceleration α = 0 and tangential acceleration a<sub>t</sub> = rα = 0.
+            The only acceleration of point P is the centripetal acceleration a<sub>c</sub>, directed toward the center.</li>
+        <li><strong>Rigid wheel, fixed radius:</strong> r is measured from the axle to the tire
+            edge and does not change (no tire deformation).</li>
+        <li><strong>Rolling without slipping:</strong> the scooter's ground speed equals the
+            tangential speed of the rim, v<sub>CM</sub> = rω. Slipping or skidding is not modeled.</li>
+        <li><strong>Direct drive:</strong> N is the rotation rate of the wheel itself
+            (no gearbox is modeled). Air resistance and friction are ignored.</li>
+        <li><strong>Equal wheels:</strong> the front and rear wheels have the same radius, so both turn at the
+            same ω. The analysis (point P and the arrows) is drawn on the rear motor wheel.</li>
+        <li><strong>Angles in radians:</strong> 1 revolution = 2π rad; θ(rad) = π/180 × θ(deg).
+            1 m/s = 3.6 km/h, and g = 9.81 m/s² is used only for the "≈ g" comparison.</li>
+      </ul>
+    </section>
+
+    <!-- ================= VALIDATION EVIDENCE =================
+         PDF ref: p.3, item 10 ("Validate at least three input sets ... show
+         the evidence in the product or video"); p.6, "Show evidence for
+         three input sets", "Worked example" table (layout: Case, r, N, ω, vt,
+         ac) and "Expected trends" sentence; p.7, Phase 2 row 4 (one complete
+         manual calculation compared with the program); p.9, rubric row
+         "Accuracy Testing and Validation". -->
+    <section class="card full">
+      <h2>9 · Validation evidence: program vs manual calculation</h2>
+      <p class="note">
+        The "Manual" columns were calculated by hand with a calculator from
+        ω = 2πN/60, v<sub>t</sub> = rω and a<sub>c</sub> = rω². The "Program" columns come
+        from this program's own formulas (script.js, Section 1). They are compared at 3 decimal places.
+        Press <em>Load</em> to send a case to the analyzer above.
+      </p>
+      <div class="wide">
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2">Case</th><th rowspan="2">r (m)</th><th rowspan="2">N (RPM)</th>
+              <th colspan="2">ω (rad/s)</th><th colspan="2">v<sub>t</sub> (m/s)</th>
+              <th colspan="2">a<sub>c</sub> (m/s²)</th><th rowspan="2">Result</th><th rowspan="2"></th>
+            </tr>
+            <tr>
+              <th>Manual</th><th>Program</th><th>Manual</th><th>Program</th>
+              <th>Manual</th><th>Program</th>
+            </tr>
+          </thead>
+          <tbody id="valBody"></tbody>
+        </table>
+      </div>
+      <p id="valSummary" class="badge"></p>
+
+      <h3>Complete manual calculation (Case 1: r = 0.12 m, N = 600 RPM)</h3>
+      <div class="steps">ω  = 2πN / 60 = 2π(600) / 60 = 20π rad/s ≈ 62.832 rad/s
+v_t = rω = (0.12 m)(62.832 rad/s) ≈ 7.540 m/s
+a_c = rω² = (0.12 m)(62.832 rad/s)² = (0.12)(3947.84) ≈ 473.741 m/s²</div>
+      <p class="note" id="manualProgram"></p>
+
+      <h3>Trend checks (relationships that must hold)</h3>
+      <div class="wide">
+        <table>
+          <thead><tr><th>Test (r = 0.20 m, N = 60 RPM as reference)</th><th>Expected ratio</th><th>Program ratio</th><th></th></tr></thead>
+          <tbody id="trendBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= CREDITS =================
+         PDF ref: p.3, item 11 ("Keep code understandable and acknowledge
+         assistance"); p.8, "Responsible use of AI and coding resources"
+         (bullet: "Credit resources and AI tools with their names or links and
+         how they helped. Place credits in the program and video"); p.7,
+         "Presentation requirements" items 6-7 (identify contributions;
+         acknowledge borrowed code, references and AI assistance).
+         Individual classification: p.1, section VI. -->
+    <section class="card full">
+      <h2>10 · Credits and acknowledgements</h2>
+      <p><strong>Project:</strong> E-Scooter Smart Wheel Analyzer · PHYSICS CODELAB: Code It, Simulate It, Explain It!
+         · General Science, Grade 11, Philippine International School-Qatar</p>
+      <p><strong>Developer (individual):</strong> <span class="fill">[Write your full name here]</span>
+         &nbsp;·&nbsp; <strong>Section:</strong> <span class="fill">[ ]</span></p>
+      <p><strong>Contribution:</strong> <span class="fill">[Describe what you did: planned the physics,
+         coded the formulas, tested three cases, recorded the video, …]</span></p>
+      <ul class="howto">
+        <li><strong>Physics equations:</strong> PISQ Performance Task Form, "Physics Equations and
+            Model Conditions" (ω = 2πN/60, v<sub>t</sub> = rω, a<sub>c</sub> = rω² = v<sub>t</sub>²/r, s = rΔθ).</li>
+        <li><strong>AI assistance:</strong> Claude Code (Anthropic) helped write the first version of the HTML,
+            CSS and JavaScript structure and the code comments. The developer reviewed the code,
+            tested the three input sets against manual calculations, and can explain every equation and code section.</li>
+        <li><strong>Libraries / media:</strong> none. Drawing uses the browser's built-in HTML canvas; no external code, images or music.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>Physics project · Rotational Motion · All quantities in SI units</footer>
+
+  <!-- All the logic (physics formulas, animation, test panel) lives in script.js.
+       It is loaded last so every element above already exists when it runs. -->
+  <script src="script.js"></script>
+</body>
+</html>
