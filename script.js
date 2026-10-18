@@ -1,124 +1,27 @@
-/* E-Scooter Smart Wheel Analyzer - all the logic. Linked from index.html */
 
-/* =====================================================================
-   PDF REFERENCE KEY
-   Source document: "PT 1 GEN SCI.pdf" - PISQ SF No. 12, Performance
-   Task Form, "PHYSICS CODELAB: CODE IT, SIMULATE IT, EXPLAIN IT!"
-   (General Science, Senior High School, 2026-2027), 11 pages.
-   Comments marked "PDF ref:" in this file point to it like this:
-
-     p.1   Performance Task Form (Title, Description, Performance
-           Standards, Subject Matters, Materials, Classification)
-     p.2   Task / completion dates table
-     p.3   Phase 1 Coding Project Output: steps 1-4,
-           "Minimum product requirements" items 1-11, "Phase 1 deliverables"
-     p.4   "Suggested Coding Projects" table (row "Smart Wheel Analyzer"),
-           "Choose a platform you can explain"
-     p.5   "Physics Equations and Model Conditions" table and
-           "Make the model honest" (2 paragraphs)
-     p.6   "Testing and Group Responsibilities": "Show evidence for three
-           input sets", "Worked example Smart Wheel Analyzer"
-     p.7   Phase 2 Video Presentation
-     p.8   Implementation and Submission, "Responsible use of AI and
-           coding resources", "Final check before submitting"
-     p.9   Phase 1 Coding Project Output Rubric
-     p.10  Phase 2 Video Presentation Rubric
-
-   A formula marked "not in the PDF" was added by the developer.
-   ===================================================================== */
-
-/* =====================================================================
-   SECTION 1 — PHYSICS FORMULAS
-   These are "pure" functions: numbers in, number out. They do not touch
-   the page, so they are easy to read and test.
-
-   PDF ref: p.5, "Physics Equations and Model Conditions" table.
-            p.6, "Worked example Smart Wheel Analyzer" (the formula line
-            ω = 2πN/60; v_t = rω; a_c = rω²).
-   ===================================================================== */
-
-/**
- * Angular velocity from motor speed.
- *   1 revolution = 2π radians, 1 minute = 60 seconds
- *   ω = 2π · N / 60
- * @param {number} rpm  motor speed N (revolutions per minute)
- * @returns {number}    ω in rad/s
- *
- * PDF ref: p.5, table row "Unit conversion", first equation ω = 2πN/60.
- *          Condition in the right column: "N is a numerical RPM input.
- *          Convert it to rad/s."  Also p.6 worked example, first formula.
- */
 function angularVelocity(rpm) {
   return (2 * Math.PI * rpm) / 60;
 }
 
-/**
- * Tangential (linear) speed of a point on the tire edge.
- *   v_t = ω · r
- * This is also the speed of the scooter on the road (rolling without slipping).
- *
- * PDF ref: p.5, table row "Linear and angular connections", second
- *          equation v_t = rω ("Use radians and a fixed radius").
- *          p.5, "Make the model honest", paragraph 1 ("Rolling: use
- *          vCM = rω only for rolling without slipping").
- *          p.6 worked example: v_t = rω.
- */
 function tangentialSpeed(omega, radius) {
   return omega * radius;
 }
 
-/**
- * Centripetal acceleration of a point on the tire edge.
- *   a_c = ω² · r      (same as v_t² / r)
- * It always points toward the center of the wheel.
- *
- * PDF ref: p.5, table row "Centripetal acceleration": a_c = v_t²/r = rω²
- *          ("a_c in m/s², directed toward the center. This differs from
- *          tangential acceleration."). p.6 worked example: a_c = rω².
- */
 function centripetalAcceleration(omega, radius) {
   return omega * omega * radius;
 }
 
-/**
- * Period: time for one full revolution.   T = 60 / N   [s]
- * PDF ref: NOT in the PDF. Added by the developer; it follows from the
- *          p.5 "Unit conversion" idea (N revolutions in 60 seconds).
- */
 function period(rpm) {
   return 60 / rpm;
 }
 
-/**
- * Angular displacement after time t (constant ω).   θ = ω · t   [rad]
- * PDF ref: p.5, table row "Rotation with constant angular acceleration",
- *          second equation Δθ = ω₀t + ½αt². With ω₀ = ω and α = 0
- *          (constant angular speed, see p.6 "This example treats a point
- *          on a wheel's rim as moving in a circle at constant angular
- *          speed") it becomes Δθ = ωt.
- */
 function angularDisplacement(omega, time) {
   return omega * time;
 }
 
-/**
- * Arc length along the tire (distance rolled).   s = θ · r   [m]
- * PDF ref: p.5, table row "Linear and angular connections", first
- *          equation s = rΔθ ("s is arc length in m ... Use radians").
- *          p.1, section IV "Connections: arc length and angular
- *          displacement".
- */
 function arcLength(theta, radius) {
   return theta * radius;
 }
-
-/**
- * Bundles every calculation into one object so the page can use it.
- * PDF ref: p.3, "Minimum product requirements" item 5 ("Calculate
- *          numerical results from the current inputs; preset answers or
- *          hard-coded sample results do not qualify"). Every value here
- *          is computed from the three inputs, never typed in.
- */
 function analyze(radius, rpm, time) {
   const omega = angularVelocity(rpm);
   const theta = angularDisplacement(omega, time);
@@ -133,59 +36,18 @@ function analyze(radius, rpm, time) {
   };
 }
 
-
-/* =====================================================================
-   SECTION 2 — READING AND VALIDATING INPUTS
-   Stops bad values (empty, zero, negative, too large) before they
-   reach the physics functions.
-
-   PDF ref: p.3, "Minimum product requirements":
-            item 9 ("Handle invalid input appropriately, such as
-                    nonnumeric entries, a zero radius in a division, or
-                    values outside the model's stated range");
-            item 7 ("Convert non-SI inputs and display SI results");
-            item 4 (at least two adjustable physical variables).
-            p.9, rubric row "Program Functionality and Coding Logic",
-            level 5 ("invalid inputs are handled clearly").
-   ===================================================================== */
-
-// Short helper: get an element by its id.
-const $ = (id) => document.getElementById(id);
-
-/**
- * Allowed ranges for each input (the "model's stated range").
- * PDF ref: p.3, "Minimum product requirements" item 9. The numeric limits
- *          themselves are the developer's choice (not in the PDF) and are
- *          printed on the page in the "How to use" card.
- */
 const LIMITS = {
   radius: { min: 0.01, max: 1,    label: "Radius",     unit: "m" },
   rpm:    { min: 1,    max: 3000, label: "Motor speed", unit: "RPM" },
   time:   { min: 0,    max: 3600, label: "Time",       unit: "s" }
 };
 
-/**
- * Unit conversion for the radius input (requirement: convert non-SI
- * inputs and display SI results). "toMetres" is the multiplier that
- * changes the typed number into meters:   r[m] = typed value × toMetres
- *
- * PDF ref: p.3, "Minimum product requirements" item 7 ("Label controls,
- *          outputs and graph axes with quantities and units. Convert
- *          non-SI inputs and display SI results."). The factors
- *          1 cm = 0.01 m and 1 in = 0.0254 m are standard conversions
- *          (not in the PDF).
- */
 const RADIUS_UNITS = {
   m:  { toMetres: 1,      label: "m"  },
   cm: { toMetres: 0.01,   label: "cm" },
   in: { toMetres: 0.0254, label: "in" }
 };
 
-/**
- * Checks one input field. Shows a red message if invalid.
- * The returned value is ALWAYS in SI units (radius in meters).
- * @returns {number|null} the SI number if valid, otherwise null
- */
 function readField(key) {
   const input = $(key);
   const errorBox = $(key + "Error");
@@ -218,21 +80,6 @@ function readField(key) {
   return value;
 }
 
-
-/* =====================================================================
-   SECTION 3 — SHOWING RESULTS ON THE PAGE
-
-   PDF ref: p.3, "Minimum product requirements" item 7 (label outputs with
-            quantities and units; display SI results) and item 5.
-            p.1, section III "Performance Standards" ("calculates
-            numerical results ... using correct equations and SI units").
-            p.6, "Case 1 manual check uses full precision internally.
-            Round only the displayed results." -> the values are kept at
-            full precision in analyze() and rounded only by fmt() below.
-   ===================================================================== */
-
-// "state" holds the latest valid numbers. The animation and the test
-// panel read from here.
 const state = { valid: false, radius: 0.12, rpm: 600, time: 5, result: null };
 
 /** Formats a number: more decimals for small numbers, fewer for big ones. */
@@ -314,28 +161,6 @@ function updateAll() {
   drawGraph();
 }
 
-
-/* =====================================================================
-   SECTION 4 — WHEEL ANIMATION (HTML canvas)
-   Draws the wheel, a marked point on the tire edge, and two arrows:
-   green = tangential velocity, orange = centripetal acceleration.
-
-   PDF ref: p.4, "Suggested Coding Projects" table, row "Smart Wheel
-            Analyzer": controls "Adjust radius and RPM; rotate a wheel and
-            display values at its rim."
-            p.3, "Minimum product requirements" item 6 ("Show at least one
-            responsive animation, graph, diagram or simulation that
-            reflects the calculated results").
-            p.5, "Make the model honest", paragraph 2: "Python and
-            JavaScript trigonometric functions use radians" (Math.cos and
-            Math.sin below use radians) and "An animation may use a
-            declared scale or slower playback, but its labels and trends
-            must match the computed motion" (see the slow-motion slider,
-            the scale notes and arrowLen()).
-            p.5, "Centripetal acceleration" row: a_c is "directed toward
-            the center" (orange arrow); v_t is along the circular path
-            (green arrow).
-   ===================================================================== */
 
 const wheelCanvas = $("wheelCanvas");
 const wctx = wheelCanvas.getContext("2d");
@@ -523,19 +348,6 @@ function animate(timestamp) {
   requestAnimationFrame(animate);
 }
 
-
-/* =====================================================================
-   SECTION 5 — GRAPH OF θ vs t
-   A straight line through the origin; slope = ω.
-
-   PDF ref: p.3, "Minimum product requirements" item 6 (responsive graph)
-            and item 7 ("Label ... graph axes with quantities and units":
-            axes here are "time t (s)" and "angular displacement θ (rad)").
-            p.5, "Rotation with constant angular acceleration" row,
-            Δθ = ω₀t + ½αt² with α = 0 gives the straight line Δθ = ωt.
-            p.1, section IV lists "displacement-time ... graphs" and
-            "angular displacement"; this graph is the rotational version.
-   ===================================================================== */
 
 const graphCanvas = $("graphCanvas");
 const gctx = graphCanvas.getContext("2d");
