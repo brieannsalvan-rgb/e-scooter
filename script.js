@@ -160,7 +160,7 @@ function updateAll() {
 
   drawGraph();
 }
-
+const $ = (id) => document.getElementById(id);
 
 const wheelCanvas = $("wheelCanvas");
 const wctx = wheelCanvas.getContext("2d");
